@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   build:
+    name: Build APK
     runs-on: ubuntu-latest
 
     steps:
@@ -23,21 +24,27 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Setup Android
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v4
 
       - name: Install Android SDK
         run: |
+          yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools"
           sdkmanager "platforms;android-35"
           sdkmanager "build-tools;35.0.0"
 
-      - name: Create Android project
+      - name: Create clean Android project
         shell: bash
         run: |
-          mkdir -p app/src/main/java/com/fileaimcreator/app
+          set -e
 
-          cat > settings.gradle.kts <<'EOF'
+          PROJECT="/tmp/FileAimCreator"
+
+          rm -rf "$PROJECT"
+          mkdir -p "$PROJECT/app/src/main/java/com/fileaimcreator/app"
+
+          cat > "$PROJECT/settings.gradle.kts" <<'EOF'
           pluginManagement {
               repositories {
                   google()
@@ -58,23 +65,20 @@ jobs:
           include(":app")
           EOF
 
-          cat > build.gradle.kts <<'EOF'
+          cat > "$PROJECT/build.gradle.kts" <<'EOF'
           plugins {
               id("com.android.application") version "8.6.1" apply false
-              id("org.jetbrains.kotlin.android") version "2.0.21" apply false
           }
           EOF
 
-          cat > gradle.properties <<'EOF'
+          cat > "$PROJECT/gradle.properties" <<'EOF'
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
           android.useAndroidX=true
-          kotlin.code.style=official
           EOF
 
-          cat > app/build.gradle.kts <<'EOF'
+          cat > "$PROJECT/app/build.gradle.kts" <<'EOF'
           plugins {
               id("com.android.application")
-              id("org.jetbrains.kotlin.android")
           }
 
           android {
@@ -88,93 +92,116 @@ jobs:
                   versionCode = 1
                   versionName = "1.0"
               }
-          }
 
-          dependencies {
-              implementation("androidx.core:core-ktx:1.15.0")
-              implementation("androidx.appcompat:appcompat:1.7.0")
-              implementation("androidx.activity:activity-ktx:1.10.0")
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
           }
           EOF
 
-          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          cat > "$PROJECT/app/src/main/AndroidManifest.xml" <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
               <application
-                  android:theme="@android:style/Theme.Material.NoActionBar"
+                  android:allowBackup="false"
                   android:label="File Aim Creator"
-                  android:allowBackup="false">
+                  android:theme="@android:style/Theme.Material.NoActionBar">
 
                   <activity
                       android:name=".MainActivity"
-                      android:screenOrientation="portrait"
-                      android:exported="true">
+                      android:exported="true"
+                      android:screenOrientation="portrait">
 
                       <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
 
                   </activity>
+
               </application>
 
           </manifest>
           EOF
 
-          cat > app/src/main/java/com/fileaimcreator/app/MainActivity.kt <<'EOF'
-          package com.fileaimcreator.app
+          cat > "$PROJECT/app/src/main/java/com/fileaimcreator/app/MainActivity.java" <<'EOF'
+          package com.fileaimcreator.app;
 
-          import android.app.Activity
-          import android.os.Bundle
-          import android.graphics.Color
-          import android.view.Gravity
-          import android.widget.LinearLayout
-          import android.widget.TextView
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.graphics.Color;
+          import android.graphics.Typeface;
+          import android.view.Gravity;
+          import android.widget.LinearLayout;
+          import android.widget.TextView;
 
-          class MainActivity : Activity() {
+          public class MainActivity extends Activity {
 
-              override fun onCreate(savedInstanceState: Bundle?) {
-                  super.onCreate(savedInstanceState)
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
 
-                  val root = LinearLayout(this)
-                  root.orientation = LinearLayout.VERTICAL
-                  root.gravity = Gravity.CENTER
-                  root.setPadding(32, 32, 32, 32)
-                  root.setBackgroundColor(Color.rgb(10, 14, 22))
+                  LinearLayout root = new LinearLayout(this);
+                  root.setOrientation(LinearLayout.VERTICAL);
+                  root.setGravity(Gravity.CENTER);
+                  root.setPadding(32, 32, 32, 32);
+                  root.setBackgroundColor(Color.rgb(8, 12, 18));
 
-                  val title = TextView(this)
-                  title.text = "FILE AIM CREATOR"
-                  title.textSize = 28f
-                  title.setTextColor(Color.CYAN)
-                  title.gravity = Gravity.CENTER
+                  TextView title = new TextView(this);
+                  title.setText("FILE AIM CREATOR");
+                  title.setTextColor(Color.CYAN);
+                  title.setTextSize(28);
+                  title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+                  title.setGravity(Gravity.CENTER);
 
-                  val sub = TextView(this)
-                  sub.text = "\nCreator APK\n\nPREMIUM-938448"
-                  sub.textSize = 18f
-                  sub.setTextColor(Color.WHITE)
-                  sub.gravity = Gravity.CENTER
+                  TextView info = new TextView(this);
+                  info.setText(
+                      "APK BUILD SUCCESS\\n\\n" +
+                      "File Aim Creator\\n\\n" +
+                      "PREMIUM-938448"
+                  );
+                  info.setTextColor(Color.WHITE);
+                  info.setTextSize(18);
+                  info.setGravity(Gravity.CENTER);
+                  info.setPadding(0, 40, 0, 0);
 
-                  root.addView(title)
-                  root.addView(sub)
+                  root.addView(title);
+                  root.addView(info);
 
-                  setContentView(root)
+                  setContentView(root);
               }
           }
           EOF
 
-      - name: Build APK
-        run: |
-          gradle --no-daemon --stacktrace assembleDebug
+          echo "===== PROJECT ====="
+          find "$PROJECT" -type f | sort
 
-      - name: Check APK
+      - name: Build APK
+        shell: bash
         run: |
-          test -f app/build/outputs/apk/debug/app-debug.apk
-          ls -lh app/build/outputs/apk/debug/app-debug.apk
+          set -e
+          cd /tmp/FileAimCreator
+          gradle --no-daemon --stacktrace :app:assembleDebug
+
+      - name: Verify APK
+        shell: bash
+        run: |
+          set -e
+          APK="/tmp/FileAimCreator/app/build/outputs/apk/debug/app-debug.apk"
+
+          if [ ! -f "$APK" ]; then
+            echo "::error::APK was not created"
+            exit 1
+          fi
+
+          echo "APK created successfully:"
+          ls -lh "$APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: FileAimCreator-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: /tmp/FileAimCreator/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
