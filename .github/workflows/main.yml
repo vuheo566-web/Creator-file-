@@ -26,6 +26,11 @@ jobs:
         with:
           gradle-version: "8.7"
 
+      - name: Check project
+        run: |
+          ls -la
+          test -f settings.gradle.kts || test -f settings.gradle
+
       - name: Build APK
         run: gradle assembleDebug
 
